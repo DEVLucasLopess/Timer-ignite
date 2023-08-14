@@ -10,11 +10,11 @@ import { Router } from './Router'
 
 export function App() {
   return (
-    <BrowserRouter>
-      <ThemeProvider theme={defaultTheme}>
+    <ThemeProvider theme={defaultTheme}>
+      <BrowserRouter>
         <Router />
         <GlobalStyle />
-      </ThemeProvider>
-    </BrowserRouter>
+      </BrowserRouter>
+    </ThemeProvider>
   )
 }
