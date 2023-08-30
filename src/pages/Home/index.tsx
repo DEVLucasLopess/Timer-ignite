@@ -1,7 +1,8 @@
-import { useState, createContext } from 'react'
+import { useContext } from 'react'
 import { FormProvider, useForm } from 'react-hook-form'
 import { Play, HandPalm } from 'phosphor-react'
 import { zodResolver } from '@hookform/resolvers/zod'
+
 import * as zod from 'zod'
 
 import {
@@ -10,6 +11,7 @@ import {
   StopCountdownButton,
 } from './styles'
 import { NewCycleForm } from './NewCycleForm'
+import { CyclesContext } from '../../contexts/CyclesContext'
 import { Countdown } from './Countdown'
 
 // typando o conteudo
@@ -18,30 +20,9 @@ type DataFormType = {
   minutesAmount: number
 }
 
-interface Cycle {
-  id: string
-  task: string
-  minutesAmount: number
-  startData: Date
-  interruptedDate?: Date
-  finishedDate?: Date
-}
-
-// Typagem do contexto
-interface CycleContextType {
-  activeCycle: Cycle | undefined
-  activeCycleId: string | null
-  markCurrentCycleAsFinished: () => void
-  amountSecondsPassed: number
-  setSecondsPassed: (seconds: number) => void
-}
-
-export const CycleContext = createContext({} as CycleContextType)
-
 export function Home() {
-  const [cycles, setCycles] = useState<Cycle[]>([])
-  const [activeCycleId, setActiveCycleId] = useState<string | null>(null)
-  const [amountSecondsPassed, setAmountSecondsPassed] = useState<number>(0)
+  const { createNewCycle, interruptCurrentCycle, activeCycle } =
+    useContext(CyclesContext)
 
   // trabalhando com formulário no React a gente pode usar o modo controlled ou o modod uncontrolled.
   // "controlled" -> a gente matem em tempo real a informação que o usuario insere na nossa aplicação dentro de um estado (
@@ -52,7 +33,6 @@ export function Home() {
   // Essa forma evita renderizações desnecessárias mas perde a praticidade do outro formulário.
 
   // Quando usar um e quando usar outro? "controlled": poucos dados e poucas informações "uncontrolled": quantidades massivas de dados e informações.
-
   const newCycleFormValidationSchema = zod.object({
     task: zod.string().min(1, 'informe a tarefa'),
     minutesAmount: zod
@@ -63,6 +43,8 @@ export function Home() {
         'O ciclo precisa ser de no máximo 60 minutos e no minimo 5 minutos.',
       ),
   })
+
+  type NewCycleFormData = zod.infer<typeof newCycleFormValidationSchema>
 
   // setando o react-hook-form pra uma constante
   const newCycleForm = useForm<DataFormType>({
@@ -82,57 +64,13 @@ export function Home() {
     formState: { errors },
   } = newCycleForm
 
-  // calculos para fazer o times funcionar.
-  const activeCycle = cycles.find((cycle) => cycle.id === activeCycleId)
-
-  // enviando uma função dentro do contexto
-  function markCurrentCycleAsFinished() {
-    setCycles((state) =>
-      state.map((cycle) => {
-        if (cycle.id === activeCycleId) {
-          return { ...cycle, finishedDate: new Date() }
-        } else {
-          return cycle
-        }
-      }),
-    )
-  }
-
-  function setSecondsPassed(seconds: number) {
-    setAmountSecondsPassed(seconds)
+  function handleCreateNewCycle(data: NewCycleFormData) {
+    createNewCycle(data)
+    reset()
   }
 
   const task = watch('task')
   const isSubmitDisabled = !task
-
-  function handleCreateNewCycle(data: DataFormType) {
-    const id = String(new Date().getTime())
-    const newCycle: Cycle = {
-      id,
-      task: data.task,
-      minutesAmount: data.minutesAmount,
-      startData: new Date(),
-      interruptedDate: new Date(),
-    }
-
-    setCycles(() => [...cycles, newCycle])
-    setActiveCycleId(id)
-    setAmountSecondsPassed(0)
-    reset()
-  }
-
-  function handleStopCycle() {
-    setCycles((state) =>
-      state.map((cycle) => {
-        if (cycle.id === activeCycleId) {
-          return { ...cycle, interruptedDate: new Date() }
-        } else {
-          return cycle
-        }
-      }),
-    )
-    setActiveCycleId(null)
-  }
 
   return (
     <HomeContainer>
@@ -141,20 +79,10 @@ export function Home() {
           <NewCycleForm />
         </FormProvider>
 
-        <CycleContext.Provider
-          value={{
-            activeCycle,
-            activeCycleId,
-            markCurrentCycleAsFinished,
-            amountSecondsPassed,
-            setSecondsPassed,
-          }}
-        >
-          <Countdown />
-        </CycleContext.Provider>
+        <Countdown />
 
         {activeCycle ? (
-          <StopCountdownButton onClick={handleStopCycle} type="button">
+          <StopCountdownButton onClick={interruptCurrentCycle} type="button">
             <HandPalm size={24} />
             Pausar
           </StopCountdownButton>
